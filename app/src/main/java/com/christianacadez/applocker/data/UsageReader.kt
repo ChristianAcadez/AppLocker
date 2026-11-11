@@ -6,14 +6,21 @@ import android.content.Context
 import java.time.LocalDate
 import java.time.ZoneId
 
+data class UsageSnapshot(
+    val totals: Map<String, Long>,   // milisegundos de uso por paquete
+    val foreground: Set<String>      // paquetes abiertos ahora mismo
+)
+
 class UsageReader(context: Context) {
 
     private val usm =
         context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
-    /** Milisegundos de uso en primer plano por paquete, desde [start] hasta ahora. */
+    fun usageSince(start: Long, packages: Set<String>): Map<String, Long> =
+        snapshot(start, packages).totals
+
     @Suppress("DEPRECATION")
-    fun usageSince(start: Long, packages: Set<String>): Map<String, Long> {
+    fun snapshot(start: Long, packages: Set<String>): UsageSnapshot {
         val end = System.currentTimeMillis()
         val events = usm.queryEvents(start, end)
         val event = UsageEvents.Event()
@@ -30,7 +37,6 @@ class UsageReader(context: Context) {
                     lastResume[pkg] = event.timeStamp
 
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    // Si no vimos el inicio, la app ya estaba abierta desde [start]
                     val from = lastResume.remove(pkg) ?: start
                     totals[pkg] = (totals[pkg] ?: 0L) + (event.timeStamp - from)
                 }
@@ -40,7 +46,7 @@ class UsageReader(context: Context) {
         lastResume.forEach { (pkg, from) ->
             totals[pkg] = (totals[pkg] ?: 0L) + (end - from)
         }
-        return totals
+        return UsageSnapshot(totals, lastResume.keys.toSet())
     }
 
     companion object {

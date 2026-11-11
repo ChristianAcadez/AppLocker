@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AppLocker</string>
+    <string name="accessibility_description">Detecta qué app está en pantalla para aplicar tus límites de tiempo.</string>
 </resources>
