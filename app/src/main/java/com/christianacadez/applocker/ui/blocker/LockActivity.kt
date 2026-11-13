@@ -9,39 +9,54 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.christianacadez.applocker.data.SafetyConfig
 import com.christianacadez.applocker.data.UsageReader
 import com.christianacadez.applocker.data.db.AppDatabase
 import com.christianacadez.applocker.data.db.UnlockEvent
 import com.christianacadez.applocker.ui.theme.AppTheme
 import kotlinx.coroutines.launch
+import com.christianacadez.applocker.data.PinStore
+import com.christianacadez.applocker.data.SafetySettings
 
 class LockActivity : ComponentActivity() {
 
     private var blockedPackage: String? = null
+
+    private val pinStore by lazy { PinStore(this) }
+    private var resetAtMs by mutableLongStateOf(0L)
     private var launchId by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         blockedPackage = intent.getStringExtra(EXTRA_PACKAGE)
+        resetAtMs = intent.getLongExtra(EXTRA_RESET_AT, 0L)
         val dao = AppDatabase.get(this).unlockEventDao()
+
 
         setContent {
             AppTheme {
                 Surface(Modifier.fillMaxSize()) {
                     val scope = rememberCoroutineScope()
                     var emergenciesLeft by remember { mutableIntStateOf(0) }
+                    val settings = remember { SafetySettings(this@LockActivity) }
+                    var values by remember { mutableStateOf(settings.load()) }
+
 
                     // Recalcula las emergencias disponibles cada vez que se muestra el candado
                     LaunchedEffect(launchId) {
+                        values = settings.load()
                         val used = dao.since(UsageReader.startOfToday()).size
-                        emergenciesLeft = (SafetyConfig.MAX_UNLOCKS_PER_DAY - used).coerceAtLeast(0)
+                        emergenciesLeft = (values.maxUnlocksPerDay - used).coerceAtLeast(0)
                     }
 
                     BackHandler { goHome() }
 
                     LockScreen(
                         emergenciesLeft = emergenciesLeft,
+                        waitSeconds = values.waitSeconds,
+                        extraMinutes = values.extraMinutes,
+                        resetAtMs = resetAtMs,
+                        requiresPin = pinStore.hasPin(),
+                        verifyPin = pinStore::verify,
                         onGranted = {
                             val pkg = blockedPackage
                             if (pkg == null) {
@@ -52,7 +67,7 @@ class LockActivity : ComponentActivity() {
                                         UnlockEvent(
                                             packageName = pkg,
                                             timestamp = System.currentTimeMillis(),
-                                            extraMinutes = SafetyConfig.EXTRA_MINUTES
+                                            extraMinutes = values.extraMinutes
                                         )
                                     )
                                     finish() // revela la app que estaba debajo
@@ -69,6 +84,7 @@ class LockActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         blockedPackage = intent.getStringExtra(EXTRA_PACKAGE)
+        resetAtMs = intent.getLongExtra(EXTRA_RESET_AT, 0L)
         launchId++
     }
 
@@ -83,5 +99,6 @@ class LockActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_PACKAGE = "blocked_package"
+        const val EXTRA_RESET_AT = "reset_at"
     }
 }

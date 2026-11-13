@@ -14,24 +14,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.christianacadez.applocker.data.SafetyConfig
 import kotlinx.coroutines.delay
-import java.time.Duration
-import java.time.ZoneId
-import java.time.ZonedDateTime
+import com.christianacadez.applocker.data.PinResult
+import com.christianacadez.applocker.ui.pin.PinDialog
 
 @Composable
 fun LockScreen(
     emergenciesLeft: Int,
+    resetAtMs: Long,
+    waitSeconds: Int,
+    extraMinutes: Int,
+    requiresPin: Boolean,
+    verifyPin: (String) -> PinResult,
     onGranted: () -> Unit
-) {
-    var remaining by remember { mutableStateOf(timeUntilReset()) }
+){
     var secondsLeft by remember { mutableStateOf<Int?>(null) }
-
-    // Reloj hasta el reinicio
-    LaunchedEffect(Unit) {
+    var remaining by remember { mutableStateOf(timeUntil(resetAtMs)) }
+    var askingPin by remember { mutableStateOf(false) }
+    LaunchedEffect(resetAtMs) {
         while (true) {
-            remaining = timeUntilReset()
+            remaining = timeUntil(resetAtMs)
             delay(1_000)
         }
     }
@@ -77,7 +79,9 @@ fun LockScreen(
                 TextButton(onClick = { secondsLeft = null }) { Text("Cancelar") }
             } else {
                 OutlinedButton(
-                    onClick = { secondsLeft = SafetyConfig.WAIT_SECONDS },
+                    onClick = {
+                        if (requiresPin) askingPin = true else secondsLeft = waitSeconds
+                    },
                     enabled = emergenciesLeft > 0
                 ) {
                     Text(if (emergenciesLeft > 0) "Emergencia" else "Sin emergencias hoy")
@@ -85,7 +89,7 @@ fun LockScreen(
                 if (emergenciesLeft > 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Quedan $emergenciesLeft hoy · +${SafetyConfig.EXTRA_MINUTES} min",
+                        "Quedan $emergenciesLeft hoy · +$extraMinutes min",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -93,14 +97,22 @@ fun LockScreen(
             }
         }
     }
+    if (askingPin) {
+        PinDialog(
+            title = "PIN para la emergencia",
+            verify = verifyPin,
+            onSuccess = {
+                askingPin = false
+                secondsLeft = waitSeconds
+            },
+            onDismiss = { askingPin = false }
+        )
+    }
 }
 
 /** Tiempo hasta la medianoche, en formato HH:MM. */
-private fun timeUntilReset(): String {
-    val zone = ZoneId.systemDefault()
-    val now = ZonedDateTime.now(zone)
-    val next = now.toLocalDate().plusDays(1).atStartOfDay(zone)
-    val seconds = Duration.between(now, next).seconds
+private fun timeUntil(resetAtMs: Long): String {
+    val seconds = ((resetAtMs - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
     val minutes = (seconds + 59) / 60
     return "%02d:%02d".format(minutes / 60, minutes % 60)
 }
