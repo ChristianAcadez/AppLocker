@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import com.christianacadez.applocker.R
 
 object Notifier {
 
@@ -27,7 +28,7 @@ object Notifier {
             "Quedan $minutesLeft minutos de $appName"
         }
         val notification = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+            .setSmallIcon(R.drawable.ic_stat_lock)
             .setContentTitle("Límite por agotarse")
             .setContentText(text)
             .setAutoCancel(true)

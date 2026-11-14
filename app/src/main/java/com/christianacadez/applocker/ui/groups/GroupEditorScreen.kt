@@ -19,10 +19,8 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.christianacadez.applocker.data.InstalledApp
 import com.christianacadez.applocker.data.db.GroupMember
 import com.christianacadez.applocker.data.db.GroupRule
@@ -112,8 +110,7 @@ fun GroupEditorScreen(
         Spacer(Modifier.height(24.dp))
         Text(
             if (existing == null) "Nuevo grupo" else "Editar grupo",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Light
+            style = MaterialTheme.typography.headlineLarge
         )
         Spacer(Modifier.height(24.dp))
 

@@ -20,6 +20,11 @@ import com.christianacadez.applocker.ui.settings.SettingsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 
 sealed interface Screen {
     data object Groups : Screen
@@ -54,41 +59,47 @@ fun AppRoot() {
     var screen by remember { mutableStateOf<Screen>(Screen.Groups) }
 
     Box(Modifier.fillMaxSize().safeDrawingPadding()) {
-        when (val current = screen) {
-            Screen.Groups -> GroupsScreen(
-                groups = groups,
-                labels = labels,
-                serviceEnabled = serviceEnabled,
-                onEnableService = { AccessibilityStatus.openSettings(context) },
-                onAdd = { screen = Screen.Editor(0) },
-                onOpen = { screen = Screen.Editor(it) },
-                onSettings = { screen = Screen.Settings }
-            )
+        AnimatedContent(
+            targetState = screen,
+            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+            label = "screen"
+        ) { current ->
+            when (current) {
+                Screen.Groups -> GroupsScreen(
+                    groups = groups,
+                    labels = labels,
+                    serviceEnabled = serviceEnabled,
+                    onEnableService = { AccessibilityStatus.openSettings(context) },
+                    onAdd = { screen = Screen.Editor(0) },
+                    onOpen = { screen = Screen.Editor(it) },
+                    onSettings = { screen = Screen.Settings }
+                )
 
-            Screen.Settings -> SettingsScreen(
-                serviceEnabled = serviceEnabled,
-                onOpenAccessibility = { AccessibilityStatus.openSettings(context) },
-                onBack = { screen = Screen.Groups }
-            )
+                Screen.Settings -> SettingsScreen(
+                    serviceEnabled = serviceEnabled,
+                    onOpenAccessibility = { AccessibilityStatus.openSettings(context) },
+                    onBack = { screen = Screen.Groups }
+                )
 
-            is Screen.Editor -> GroupEditorScreen(
-                existing = groups.find { it.group.id == current.groupId },
-                allGroups = groups,
-                installed = installed,
-                onSave = { name, members, rules ->
-                    scope.launch {
-                        repo.save(current.groupId, name, members, rules)
-                        screen = Screen.Groups
-                    }
-                },
-                onDelete = {
-                    scope.launch {
-                        repo.delete(current.groupId)
-                        screen = Screen.Groups
-                    }
-                },
-                onClose = { screen = Screen.Groups }
-            )
+                is Screen.Editor -> GroupEditorScreen(
+                    existing = groups.find { it.group.id == current.groupId },
+                    allGroups = groups,
+                    installed = installed,
+                    onSave = { name, members, rules ->
+                        scope.launch {
+                            repo.save(current.groupId, name, members, rules)
+                            screen = Screen.Groups
+                        }
+                    },
+                    onDelete = {
+                        scope.launch {
+                            repo.delete(current.groupId)
+                            screen = Screen.Groups
+                        }
+                    },
+                    onClose = { screen = Screen.Groups }
+                )
+            }
         }
     }
 }

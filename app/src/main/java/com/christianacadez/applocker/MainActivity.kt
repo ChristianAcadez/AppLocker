@@ -30,7 +30,6 @@ import com.christianacadez.applocker.ui.pin.PinSetupScreen
 import com.christianacadez.applocker.ui.theme.AppTheme
 
 class MainActivity : ComponentActivity() {
-
     private var unlocked by mutableStateOf(false)
     private var stoppedAt = 0L
 

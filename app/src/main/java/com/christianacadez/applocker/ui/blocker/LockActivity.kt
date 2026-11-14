@@ -20,6 +20,7 @@ import com.christianacadez.applocker.data.SafetySettings
 class LockActivity : ComponentActivity() {
 
     private var blockedPackage: String? = null
+    private var appName by mutableStateOf("")
 
     private val pinStore by lazy { PinStore(this) }
     private var resetAtMs by mutableLongStateOf(0L)
@@ -28,6 +29,7 @@ class LockActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         blockedPackage = intent.getStringExtra(EXTRA_PACKAGE)
+        appName = labelOf(blockedPackage)
         resetAtMs = intent.getLongExtra(EXTRA_RESET_AT, 0L)
         val dao = AppDatabase.get(this).unlockEventDao()
 
@@ -57,6 +59,7 @@ class LockActivity : ComponentActivity() {
                         resetAtMs = resetAtMs,
                         requiresPin = pinStore.hasPin(),
                         verifyPin = pinStore::verify,
+                        appName = appName,
                         onGranted = {
                             val pkg = blockedPackage
                             if (pkg == null) {
@@ -84,6 +87,7 @@ class LockActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         blockedPackage = intent.getStringExtra(EXTRA_PACKAGE)
+        appName = labelOf(blockedPackage)
         resetAtMs = intent.getLongExtra(EXTRA_RESET_AT, 0L)
         launchId++
     }
@@ -101,4 +105,12 @@ class LockActivity : ComponentActivity() {
         const val EXTRA_PACKAGE = "blocked_package"
         const val EXTRA_RESET_AT = "reset_at"
     }
+
+    @Suppress("DEPRECATION")
+    private fun labelOf(pkg: String?): String =
+        pkg?.let {
+            runCatching {
+                packageManager.getApplicationInfo(it, 0).loadLabel(packageManager).toString()
+            }.getOrNull()
+        } ?: ""
 }
